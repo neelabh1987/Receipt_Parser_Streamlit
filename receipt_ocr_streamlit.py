@@ -7,7 +7,7 @@ Original file is located at
     https://colab.research.google.com/drive/1wSRACTWxHgfKyfu8sl1XVq9Xc-qKsgo9
 """
 
-!pip install streamlit python-dotenv transformers huggingface-hub pymupdf
+#!pip install streamlit python-dotenv transformers huggingface-hub pymupdf
 
 import streamlit as st
 import os
