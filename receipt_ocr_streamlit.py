@@ -1,7 +1,7 @@
 import torch
 torch.classes.__path__ = []
 
-#!pip install streamlit python-dotenv transformers huggingface-hub pymupdf
+# !pip install streamlit python-dotenv transformers huggingface-hub pymupdf
 
 import streamlit as st
 import os
@@ -9,7 +9,7 @@ import time
 import tempfile
 from PIL import Image
 from dotenv import load_dotenv
-import fitz
+import fitz  # PyMuPDF
 
 # Load environment variables
 load_dotenv()
@@ -23,6 +23,7 @@ try:
 except ImportError:
     transformers_available = False
 
+
 def check_dependencies():
     missing = []
     if not transformers_available:
@@ -30,8 +31,8 @@ def check_dependencies():
     return missing
 
 
-def process_single_image(image, prompt_text="Convert this page to docling."):
-    """Process a single image and return only raw OCR text"""
+def process_single_image(image, prompt_text="Convert this page to markdown."):
+    """Process a single image and return Markdown-formatted text"""
     if HF_TOKEN:
         login(token=HF_TOKEN)
 
@@ -48,8 +49,7 @@ def process_single_image(image, prompt_text="Convert this page to docling."):
         st.error(f"Error loading model: {str(e)}")
         raise
 
-
-     # Build prompt for raw OCR
+    # Build prompt for Markdown
     messages = [
         {
             "role": "user",
@@ -67,20 +67,21 @@ def process_single_image(image, prompt_text="Convert this page to docling."):
     prompt_length = inputs.input_ids.shape[1]
     trimmed_generated_ids = generated_ids[:, prompt_length:]
 
-    raw_text = processor.batch_decode(trimmed_generated_ids, skip_special_tokens=True)[0].strip()
+    markdown_text = processor.batch_decode(trimmed_generated_ids, skip_special_tokens=True)[0].strip()
     processing_time = time.time() - start_time
 
-    return raw_text, processing_time
+    return markdown_text, processing_time
 
-def process_pdf(pdf_file, prompt_text="Convert this page to docling."):
-    """Extract raw OCR text from all pages in a PDF"""
+
+def process_pdf(pdf_file, prompt_text="Convert this page to markdown."):
+    """Extract Markdown-formatted text from all pages in a PDF"""
     temp_file = tempfile.NamedTemporaryFile(delete=False)
     temp_file.write(pdf_file.read())
     temp_file.close()
 
     doc = fitz.open(temp_file.name)
 
-    all_raw_text = []
+    all_markdown = []
     total_processing_time = 0
 
     for page_num in range(len(doc)):
@@ -88,18 +89,19 @@ def process_pdf(pdf_file, prompt_text="Convert this page to docling."):
         pix = page.get_pixmap()
         image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
 
-        raw_text, processing_time = process_single_image(image, prompt_text)
-        all_raw_text.append(f"--- Page {page_num + 1} ---\n{raw_text}")
+        markdown_text, processing_time = process_single_image(image, prompt_text)
+        all_markdown.append(f"### Page {page_num + 1}\n\n{markdown_text}")
         total_processing_time += processing_time
 
-    combined_text = "\n\n".join(all_raw_text)
-    return combined_text, total_processing_time
+    combined_markdown = "\n\n".join(all_markdown)
+    return combined_markdown, total_processing_time
+
 
 def main():
-    st.set_page_config(page_title="OCR Text Extractor", layout="wide")
-    st.title("🧾 OCR Text Extractor (Image & PDF)")
+    st.set_page_config(page_title="OCR Markdown Extractor", layout="wide")
+    st.title("🧾 OCR to Markdown Extractor (Image & PDF)")
 
-    st.write("Upload an image or PDF receipt to extract raw OCR text using SmolDocling.")
+    st.write("Upload an image or PDF document to extract text as **Markdown** using SmolDocling.")
 
     if not HF_TOKEN:
         st.warning("⚠️ HF_TOKEN not found in .env file. Authentication may fail.")
@@ -113,7 +115,8 @@ def main():
     with st.sidebar:
         st.header("📎 Upload Input")
         upload_option = st.radio("Choose file type:", ["Single Image", "PDF File"])
-        prompt_text = st.text_input("Prompt for OCR (default recommended)", "Convert this page to docling.")
+        prompt_text = st.text_input("Prompt for OCR (Markdown conversion)", "Convert this page to markdown.")
+        show_raw = st.checkbox("Show raw Markdown output")
 
         if upload_option == "Single Image":
             uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
@@ -127,10 +130,13 @@ def main():
         if st.button("Process Image"):
             with st.spinner("Processing image..."):
                 try:
-                    raw_text, processing_time = process_single_image(image, prompt_text)
-                    st.subheader("📝 Extracted Text")
-                    st.text_area("OCR Result", raw_text, height=400)
-                    st.download_button("Download Text", raw_text, file_name="ocr_output.txt")
+                    markdown_text, processing_time = process_single_image(image, prompt_text)
+                    st.subheader("📝 Extracted Markdown")
+                    if show_raw:
+                        st.text_area("Raw Markdown", markdown_text, height=400)
+                    else:
+                        st.markdown(markdown_text, unsafe_allow_html=True)
+                    st.download_button("Download Markdown", markdown_text, file_name="ocr_output.md")
                     st.success(f"Processing completed in {processing_time:.2f} seconds")
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
@@ -139,20 +145,24 @@ def main():
         if st.button("Process PDF"):
             with st.spinner("Processing PDF..."):
                 try:
-                    combined_text, total_processing_time = process_pdf(uploaded_pdf, prompt_text)
-                    st.subheader("📄 Extracted Text from PDF")
-                    st.text_area("OCR Result", combined_text, height=400)
-                    st.download_button("Download Text", combined_text, file_name="ocr_pdf_output.txt")
+                    combined_markdown, total_processing_time = process_pdf(uploaded_pdf, prompt_text)
+                    st.subheader("📄 Extracted Markdown from PDF")
+                    if show_raw:
+                        st.text_area("Raw Markdown", combined_markdown, height=400)
+                    else:
+                        st.markdown(combined_markdown, unsafe_allow_html=True)
+                    st.download_button("Download Markdown", combined_markdown, file_name="ocr_pdf_output.md")
                     st.success(f"PDF processed in {total_processing_time:.2f} seconds")
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
 
     with st.expander("ℹ️ About"):
         st.write("""
-            This tool uses the [SmolDocling](https://huggingface.co/ds4sd/SmolDocling-256M-preview) model from Hugging Face to perform OCR on uploaded images or PDFs.
+            This tool uses the [SmolDocling](https://huggingface.co/ds4sd/SmolDocling-256M-preview) model from Hugging Face to perform OCR and generate Markdown from scanned documents.
 
-            - Only **raw text** is extracted (no layout/formatting).
-            - Useful for extracting receipt text, invoices, or any scanned document.
+            - Output is **Markdown-formatted** text.
+            - Useful for receipts, invoices, bills, and more.
+            - Use the checkbox to toggle between rendered and raw Markdown.
         """)
 
 
