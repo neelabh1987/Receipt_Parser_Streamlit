@@ -31,8 +31,8 @@ def check_dependencies():
     return missing
 
 
-def process_single_image(image, prompt_text="Convert this page to markdown."):
-    """Process a single image and return Markdown-formatted text"""
+def process_single_image(image, prompt_text="Extract the text content from this document line by line in plain text format."):
+    """Process a single image and return plain line-by-line OCR text"""
     if HF_TOKEN:
         login(token=HF_TOKEN)
 
@@ -49,7 +49,6 @@ def process_single_image(image, prompt_text="Convert this page to markdown."):
         st.error(f"Error loading model: {str(e)}")
         raise
 
-    # Build prompt for Markdown
     messages = [
         {
             "role": "user",
@@ -67,21 +66,21 @@ def process_single_image(image, prompt_text="Convert this page to markdown."):
     prompt_length = inputs.input_ids.shape[1]
     trimmed_generated_ids = generated_ids[:, prompt_length:]
 
-    markdown_text = processor.batch_decode(trimmed_generated_ids, skip_special_tokens=True)[0].strip()
+    plain_text = processor.batch_decode(trimmed_generated_ids, skip_special_tokens=True)[0].strip()
     processing_time = time.time() - start_time
 
-    return markdown_text, processing_time
+    return plain_text, processing_time
 
 
-def process_pdf(pdf_file, prompt_text="Convert this page to markdown."):
-    """Extract Markdown-formatted text from all pages in a PDF"""
+def process_pdf(pdf_file, prompt_text="Extract the text content from this document line by line in plain text format."):
+    """Extract plain OCR text from all pages in a PDF"""
     temp_file = tempfile.NamedTemporaryFile(delete=False)
     temp_file.write(pdf_file.read())
     temp_file.close()
 
     doc = fitz.open(temp_file.name)
 
-    all_markdown = []
+    all_text = []
     total_processing_time = 0
 
     for page_num in range(len(doc)):
@@ -89,19 +88,19 @@ def process_pdf(pdf_file, prompt_text="Convert this page to markdown."):
         pix = page.get_pixmap()
         image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
 
-        markdown_text, processing_time = process_single_image(image, prompt_text)
-        all_markdown.append(f"### Page {page_num + 1}\n\n{markdown_text}")
+        text, processing_time = process_single_image(image, prompt_text)
+        all_text.append(f"--- Page {page_num + 1} ---\n{text}")
         total_processing_time += processing_time
 
-    combined_markdown = "\n\n".join(all_markdown)
-    return combined_markdown, total_processing_time
+    combined_text = "\n\n".join(all_text)
+    return combined_text, total_processing_time
 
 
 def main():
-    st.set_page_config(page_title="OCR Markdown Extractor", layout="wide")
-    st.title("🧾 OCR to Markdown Extractor (Image & PDF)")
+    st.set_page_config(page_title="OCR Line-by-Line Text Extractor", layout="wide")
+    st.title("🧾 OCR Text Extractor (Line-by-Line, Image & PDF)")
 
-    st.write("Upload an image or PDF document to extract text as **Markdown** using SmolDocling.")
+    st.write("Upload an image or PDF document to extract **plain line-by-line OCR text** using SmolDocling.")
 
     if not HF_TOKEN:
         st.warning("⚠️ HF_TOKEN not found in .env file. Authentication may fail.")
@@ -115,8 +114,8 @@ def main():
     with st.sidebar:
         st.header("📎 Upload Input")
         upload_option = st.radio("Choose file type:", ["Single Image", "PDF File"])
-        prompt_text = st.text_input("Prompt for OCR (Markdown conversion)", "Convert this page to markdown.")
-        show_raw = st.checkbox("Show raw Markdown output")
+        prompt_text = st.text_input("Prompt for OCR (plain text line by line)", 
+                                    "Extract the text content from this document line by line in plain text format.")
 
         if upload_option == "Single Image":
             uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
@@ -130,13 +129,10 @@ def main():
         if st.button("Process Image"):
             with st.spinner("Processing image..."):
                 try:
-                    markdown_text, processing_time = process_single_image(image, prompt_text)
-                    st.subheader("📝 Extracted Markdown")
-                    if show_raw:
-                        st.text_area("Raw Markdown", markdown_text, height=400)
-                    else:
-                        st.markdown(markdown_text, unsafe_allow_html=True)
-                    st.download_button("Download Markdown", markdown_text, file_name="ocr_output.md")
+                    plain_text, processing_time = process_single_image(image, prompt_text)
+                    st.subheader("📝 Extracted Text")
+                    st.text_area("OCR Result", plain_text, height=400)
+                    st.download_button("Download Text", plain_text, file_name="ocr_output.txt")
                     st.success(f"Processing completed in {processing_time:.2f} seconds")
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
@@ -145,24 +141,20 @@ def main():
         if st.button("Process PDF"):
             with st.spinner("Processing PDF..."):
                 try:
-                    combined_markdown, total_processing_time = process_pdf(uploaded_pdf, prompt_text)
-                    st.subheader("📄 Extracted Markdown from PDF")
-                    if show_raw:
-                        st.text_area("Raw Markdown", combined_markdown, height=400)
-                    else:
-                        st.markdown(combined_markdown, unsafe_allow_html=True)
-                    st.download_button("Download Markdown", combined_markdown, file_name="ocr_pdf_output.md")
+                    combined_text, total_processing_time = process_pdf(uploaded_pdf, prompt_text)
+                    st.subheader("📄 Extracted Text from PDF")
+                    st.text_area("OCR Result", combined_text, height=400)
+                    st.download_button("Download Text", combined_text, file_name="ocr_pdf_output.txt")
                     st.success(f"PDF processed in {total_processing_time:.2f} seconds")
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
 
     with st.expander("ℹ️ About"):
         st.write("""
-            This tool uses the [SmolDocling](https://huggingface.co/ds4sd/SmolDocling-256M-preview) model from Hugging Face to perform OCR and generate Markdown from scanned documents.
+            This tool uses the [SmolDocling](https://huggingface.co/ds4sd/SmolDocling-256M-preview) model from Hugging Face to extract clean, line-by-line text from scanned documents like receipts, invoices, and bills.
 
-            - Output is **Markdown-formatted** text.
-            - Useful for receipts, invoices, bills, and more.
-            - Use the checkbox to toggle between rendered and raw Markdown.
+            - Output is plain text (not formatted as Markdown or HTML).
+            - Each line is preserved as closely as possible.
         """)
 
 
