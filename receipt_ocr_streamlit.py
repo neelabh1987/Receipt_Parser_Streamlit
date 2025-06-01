@@ -1,5 +1,9 @@
-import streamlit as st
 import os
+os.environ["STREAMLIT_WATCH_DISABLE"] = "true"
+
+
+
+import streamlit as st
 import time
 import torch
 import tempfile
