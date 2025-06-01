@@ -202,7 +202,7 @@ def main():
                     
                     with col2:
                         st.subheader("Markdown Output")
-                        st.markdown(md_content)
+                        st.markdown(md_content, unsafe_allow_html=True)
                         st.download_button("Download Markdown", md_content, file_name="output.md")
                     
                     st.success(f"Processing completed in {processing_time:.2f} seconds")
@@ -228,7 +228,7 @@ def main():
                     
                     with col2:
                         st.subheader("Markdown Output (All Pages)")
-                        st.markdown(combined_md_content)
+                        st.markdown(combined_md_content, unsafe_allow_html=True)
                         st.download_button("Download All Markdown", combined_md_content, file_name="output_all.md")
                     
                     st.success(f"PDF processed successfully in {total_processing_time:.2f} seconds")
