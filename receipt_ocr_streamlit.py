@@ -1,4 +1,7 @@
 import torch
+torch.classes.__path__ = []
+
+
 from PIL import Image, ImageEnhance, ImageFilter
 from transformers import AutoProcessor, AutoModelForVision2Seq
 from huggingface_hub import login
