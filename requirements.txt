@@ -1,10 +1,10 @@
-streamlit>=1.33
-torch>=2.2.2 --index-url https://download.pytorch.org/whl/cpu
-transformers>=4.40
-huggingface_hub>=0.23
-pymupdf>=1.23
+streamlit
+torch
+accelerate
+transformers
+docling-core
+huggingface_hub
 Pillow
 python-dotenv
-pdf2image
-poppler-utils
-docling-core
+numpy<2
+PyMuPDF
