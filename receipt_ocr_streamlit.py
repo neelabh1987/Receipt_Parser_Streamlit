@@ -162,7 +162,7 @@ def main():
     with st.sidebar:
         st.header("Input Options")
         
-        upload_option = st.radio("Choose upload option:", ["Single Image", "Multiple Images", "PDF File"])
+        upload_option = st.radio("Choose upload option:", ["Single Image", "PDF File"])
         
         task_type = st.selectbox(
             "Select task type",
@@ -205,39 +205,6 @@ def main():
                 except Exception as e:
                     st.error(f"Error processing image: {str(e)}")
     
-    elif upload_option == "Multiple Images" and 'uploaded_files' in locals() and uploaded_files:
-        images = [Image.open(file).convert("RGB") for file in uploaded_files]
-        
-        if len(images) > 0:
-            process_button = st.button("Process Images")
-            
-            if process_button:
-                with st.spinner(f"Processing {len(images)} images..."):
-                    try:
-                        # Process one by one
-                        results = []
-                        for idx, image in enumerate(images):
-                            st.write(f"Processing image {idx+1}/{len(images)}...")
-                            doctags, md_content, processing_time = process_single_image(image, task_type)
-                            results.append((doctags, md_content, processing_time))
-                        
-                        for idx, (doctags, md_content, proc_time) in enumerate(results):
-                            with st.expander(f"Image {idx+1} Results"):
-                                col1, col2 = st.columns(2)
-                                 
-                                with col1:
-                                    st.image(images[idx], caption=f"Image {idx+1}", width=250)
-                                    st.download_button(f"Download DocTags {idx+1}", doctags, file_name=f"output_{idx+1}.dt")
-                                 
-                                with col2:
-                                    st.markdown(md_content)
-                                    st.download_button(f"Download Markdown {idx+1}", md_content, file_name=f"output_{idx+1}.md")
-                            
-                            st.write(f"Image {idx+1} processed in {proc_time:.2f} seconds")
-                        
-                        st.success(f"All images processed successfully")
-                    except Exception as e:
-                        st.error(f"Error processing images: {str(e)}")
     
     elif upload_option == "PDF File" and 'uploaded_pdf' in locals() and uploaded_pdf is not None:
         process_button = st.button("Process PDF")
