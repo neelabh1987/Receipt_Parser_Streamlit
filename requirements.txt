@@ -7,3 +7,4 @@ Pillow
 python-dotenv
 pdf2image
 poppler-utils
+docling-core
